@@ -1,0 +1,25 @@
+# Binaries
+/bin/
+*.exe
+*.test
+*.out
+
+# Secrets and local configuration: NEVER commit these
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Coverage and profiling
+coverage.*
+*.prof
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Claude Code local settings
+.claude/

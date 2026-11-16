@@ -1,0 +1,117 @@
+// Public gRPC API of the order-service.
+//
+// Versioning rule: never change the meaning or number of an existing field.
+// Add new fields with new numbers; for breaking changes create package v2.
+syntax = "proto3";
+
+package orderflow.order.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/umarbek-x/gRPC-Kafka_test/gen/go/order/v1;orderv1";
+
+// OrderService manages the lifecycle of customer orders.
+service OrderService {
+  // CreateOrder creates a PENDING order and emits an OrderCreated event.
+  // Idempotent per (customer_id, idempotency_key): repeating the call returns
+  // the original order instead of creating a duplicate.
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
+
+  // GetOrder returns one order by ID.
+  rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
+
+  // ListOrders returns a customer's orders, newest first, using cursor pagination.
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
+
+  // CancelOrder cancels an order (PENDING or PAID). Emits OrderCancelled,
+  // which makes the payment-service refund a captured payment.
+  rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
+
+  // WatchOrder is a server-streaming RPC: it sends the current state and then
+  // every status change until the order reaches a final state.
+  rpc WatchOrder(WatchOrderRequest) returns (stream WatchOrderResponse);
+}
+
+enum OrderStatus {
+  // Proto3 convention: the zero value means "not set".
+  ORDER_STATUS_UNSPECIFIED = 0;
+  ORDER_STATUS_PENDING = 1;
+  ORDER_STATUS_PAID = 2;
+  ORDER_STATUS_PAYMENT_FAILED = 3;
+  ORDER_STATUS_CANCELLED = 4;
+}
+
+message OrderItem {
+  string product_id = 1;
+  int32 quantity = 2;
+  // Money is always an integer in minor units (cents). Never use float for money.
+  int64 unit_price_minor = 3;
+}
+
+message Order {
+  string id = 1;
+  string customer_id = 2;
+  repeated OrderItem items = 3;
+  int64 total_minor = 4;
+  // ISO-4217 code, e.g. "USD".
+  string currency = 5;
+  OrderStatus status = 6;
+  string failure_reason = 7;
+  // Incremented on every change. Lets clients detect concurrent updates.
+  int64 version = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message CreateOrderRequest {
+  string customer_id = 1;
+  repeated OrderItem items = 2;
+  string currency = 3;
+  // Client-generated key (e.g. a UUID) that makes retries safe.
+  string idempotency_key = 4;
+}
+
+message CreateOrderResponse {
+  Order order = 1;
+  // false when the idempotency key matched an existing order.
+  bool created = 2;
+}
+
+message GetOrderRequest {
+  string order_id = 1;
+}
+
+message GetOrderResponse {
+  Order order = 1;
+}
+
+message ListOrdersRequest {
+  string customer_id = 1;
+  // 1..100, defaults to 20.
+  int32 page_size = 2;
+  // Opaque cursor from a previous response. Empty for the first page.
+  string page_token = 3;
+}
+
+message ListOrdersResponse {
+  repeated Order orders = 1;
+  // Empty when there are no more pages.
+  string next_page_token = 2;
+}
+
+message CancelOrderRequest {
+  string order_id = 1;
+  string reason = 2;
+}
+
+message CancelOrderResponse {
+  Order order = 1;
+}
+
+message WatchOrderRequest {
+  string order_id = 1;
+}
+
+message WatchOrderResponse {
+  Order order = 1;
+}

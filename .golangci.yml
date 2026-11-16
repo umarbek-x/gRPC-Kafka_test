@@ -1,0 +1,23 @@
+# golangci-lint v2 configuration: `golangci-lint run`
+version: "2"
+
+linters:
+  enable:
+    - errcheck      # unchecked errors
+    - govet
+    - staticcheck
+    - ineffassign
+    - unused
+    - bodyclose     # HTTP response bodies must be closed
+    - contextcheck  # pass the context you were given
+    - errorlint     # use errors.Is / errors.As, wrap with %w
+    - misspell
+    - unconvert
+  exclusions:
+    paths:
+      - gen # generated code
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
